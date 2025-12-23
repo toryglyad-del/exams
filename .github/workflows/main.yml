@@ -1,8 +1,6 @@
-# .github/workflows/main.yml
-
 name: Python CI/CD
 
-# Когда запускать этот воркфлоу
+# When to trigger this workflow
 on:
   push:
     branches: [ "main", "develop" ]
@@ -15,16 +13,16 @@ jobs:
     outputs:
       test-path: ${{ steps.set-path.outputs.test-path }}
     steps:
-      - name: Создать папки проекта
+      - name: Create project directories
         run: |
           mkdir -p .github/workflows
           mkdir -p tests/unit
-      - name: Создать тестовый файл
+      - name: Create test file
         run: |
           cat <<EOF > tests/unit/test_sample.py
-def test_example():
-    assert 1 + 1 == 2
-EOF
+          def test_example():
+              assert 1 + 1 == 2
+          EOF
 
   build:
     runs-on: ubuntu-latest
@@ -95,7 +93,7 @@ EOF
           pip install -r requirements.txt
       - name: Run integration tests
         run: |
-          echo "Запуск интеграционных тестов..."
+          echo "Running integration tests..."
           pytest tests/integration/
 
   coverage_report:
