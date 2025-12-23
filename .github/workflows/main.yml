@@ -1,0 +1,139 @@
+# .github/workflows/main.yml
+
+name: Python CI/CD
+
+# Когда запускать этот воркфлоу
+on:
+  push:
+    branches: [ "main", "develop" ] # Запускать при пуше в ветки main и develop
+  pull_request:
+    branches: [ "main", "develop" ] # Запускать при создании/обновлении PR
+
+# Определяем набор заданий (jobs)
+jobs:
+  # ------------ ЗАДАНИЕ 1: СБОРКА ПРОЕКТА (BUILD) ------------
+  build:
+    runs-on: ubuntu-latest # Операционная система для выполнения задания
+    steps:
+      - name: Checkout repository # Шаг для клонирования репозитория
+        uses: actions/checkout@v3
+
+      - name: Set up Python # Шаг для настройки Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9' # Указываем версию Python
+
+      - name: Cache Python dependencies # Шаг для кэширования зависимостей
+        id: cache-pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip # Путь, который будет кэшироваться (кеш pip)
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }} # Ключ кэша: ОС-pip-хеш_requirements.txt
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies # Шаг для установки зависимостей
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        if: steps.cache-pip.outputs.cache-hit != 'true' # Устанавливаем, только если кэш не найден
+
+  # ------------ ЗАДАНИЕ 2: МОДУЛЬНЫЕ ТЕСТЫ (UNIT TESTS) ------------
+  unit_tests:
+    runs-on: ubuntu-latest
+    needs: build # Зависит от задания build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cache Python dependencies # Восстанавливаем кеш pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies # Устанавливаем зависимости (они могут быть не в кеше pip, а в virtualenv)
+        # Если build job создал virtualenv, то его надо сохранить как artifact.
+        # Для GitHub Actions обычно проще кэшировать ~/.cache/pip и переустанавливать в каждом job
+        # или использовать один job для build+test.
+        # Если вы все же хотите передавать virtualenv, то его нужно упаковать в artifact.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests # Запускаем модульные тесты
+        run: pytest tests/unit/
+
+  # ------------ ЗАДАНИЕ 3: ИНТЕГРАЦИОННЫЕ ТЕСТЫ (INTEGRATION TESTS) ------------
+  integration_tests:
+    runs-on: ubuntu-latest
+    needs: unit_tests # Зависит от задания unit_tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run integration tests # Запускаем интеграционные тесты
+        run: |
+          echo "Запуск интеграционных тестов..."
+          pytest tests/integration/
+
+  # ------------ ЗАДАНИЕ 4: ГЕНЕРАЦИЯ ОТЧЕТА О ПОКРЫТИИ (COVERAGE REPORT) ------------
+  coverage_report:
+    runs-on: ubuntu-latest
+    needs: unit_tests # Отчет о покрытии часто запускают после модульных тестов
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-cov # Устанавливаем pytest-cov, если его нет в requirements.txt
+
+      - name: Generate coverage report # Генерируем отчет о покрытии
+        run: pytest --cov=. --cov-report=xml coverage.xml
+
+      - name: Upload coverage report # Загружаем отчет о покрытии как артефакт
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml
