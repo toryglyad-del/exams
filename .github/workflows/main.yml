@@ -23,8 +23,10 @@ jobs:
           mkdir -p tests/unit
       - name: Создать тестовый файл
         run: |
-          echo 'def test_example():
-    assert 1 + 1 == 2' > tests/unit/test_sample.py
+          cat <<EOF > tests/unit/test_sample.py
+def test_example():
+    assert 1 + 1 == 2
+EOF
 
   # ------------ ЗАДАНИЕ 2: СБОРКА ПРОЕКТА (BUILD) ------------
   build:
